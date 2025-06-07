@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gráfico de Pizzas</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  </head>
+  <body>
+    <h2>Ventas y Producción de Pizzas</h2>
+    <p>
+      Rojo: Vendidas — Verde: Producidas — Azul: Producción sugerida 
+    </p>
+    <div
+      id="tooltip"
+      style="
+        position: absolute;
+        display: none;
+        background: #eee;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+      "
+    ></div>
+    <div id="chart" style="width: 700px; height: 400px"></div>
+    <script src="./script.js"></script>
+  </body>
+</html>
