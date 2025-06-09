@@ -1,5 +1,6 @@
 async function cargarDatosDesdeGoogleSheet() {
-    const URL_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQUEFQ7R8Kel9_BMtpaQnQ_CTSkNu8Hlv_0D5jepEllAFBCqledXC02VVsRtDfbP3_DEvuLBWzvAvVs/pub?output=csv';
+    const URL_CSV =
+        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQUEFQ7R8Kel9_BMtpaQnQ_CTSkNu8Hlv_0D5jepEllAFBCqledXC02VVsRtDfbP3_DEvuLBWzvAvVs/pub?output=csv';
     const response = await fetch(URL_CSV);
     const csvText = await response.text();
     const lineas = csvText.trim().split('\n');
@@ -15,7 +16,10 @@ async function cargarDatosDesdeGoogleSheet() {
         return isNaN(ts) ? null : ts;
     };
 
-    let ventas = [], produccion = [], sugerida = [], fechasMap = {};
+    let ventas = [],
+        produccion = [],
+        sugerida = [],
+        fechasMap = {};
 
     datos.forEach(fila => {
         const ts = convertirFechaATimestamp(fila['Fecha']);
@@ -47,7 +51,7 @@ async function cargarDatosDesdeGoogleSheet() {
         sugerida.push({ time: info.timestamp, value: base });
     }
 
-    // Cálculo de producción sugerida promedio últimos 4 días equivalentes
+    // Cálculo de predicción sugerida para mañana
     const ultimaFecha = fechasOrdenadas.at(-1);
     const fechaDate = new Date(ultimaFecha);
     const diaSemana = fechaDate.getDay();
@@ -69,15 +73,30 @@ async function cargarDatosDesdeGoogleSheet() {
     }
 
     const promedio = cuenta > 0 ? suma / cuenta : 100;
-    const prediccionSugerida = promedio + 15;
+    const prediccionSugerida = Math.round(promedio + 15);
     const tsPrediccion = Math.floor(fechaDate.getTime() / 1000) + 86400;
     sugerida.push({ time: tsPrediccion, value: prediccionSugerida });
 
+    // Mostrar predicción en la card
+    document.querySelector('#card-sugerida span').textContent = prediccionSugerida;
+
+    // Calcular ventas últimos 7 y 30 días
+    const ultimoTimestamp = ventas[ventas.length - 1].time;
+    const desde7 = ultimoTimestamp - 7 * 86400;
+    const desde30 = ultimoTimestamp - 30 * 86400;
+
+    const ultimos7 = ventas.filter(v => v.time > desde7).reduce((acc, v) => acc + v.value, 0);
+    const ultimos30 = ventas.filter(v => v.time > desde30).reduce((acc, v) => acc + v.value, 0);
+
+    document.querySelector('#card-ultimos7 span').textContent = ultimos7;
+    document.querySelector('#card-ultimos30 span').textContent = ultimos30;
+
+    // Crear gráfico
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
         width: 800,
-        height: 400,
-        layout: { background: { color: '#fff' }, textColor: '#000' },
-        grid: { vertLines: { visible: true }, horzLines: { visible: true } },
+        height: 350,
+        layout: { background: { color: 'white' }, textColor: 'black' },
+        grid: { vertLines: { visible: true }, horzLines: { visible: false } },
         timeScale: { timeVisible: true, secondsVisible: false },
     });
 
@@ -89,7 +108,6 @@ async function cargarDatosDesdeGoogleSheet() {
     seriesProduccion.setData(produccion);
     seriesSugerida.setData(sugerida);
 
-    // MARKERS VENTAS > PRODUCCIÓN
     const markersVentas = ventas
         .filter((p, i) => p.value > produccion[i]?.value)
         .map(p => ({
@@ -101,7 +119,6 @@ async function cargarDatosDesdeGoogleSheet() {
         }));
     seriesVentas.setMarkers(markersVentas);
 
-    // MARKERS PARTIDOS
     const markersPartido = fechasOrdenadas
         .map(fecha => {
             const info = fechasMap[fecha];
@@ -118,7 +135,6 @@ async function cargarDatosDesdeGoogleSheet() {
         })
         .filter(m => m !== null);
 
-    // MARKERS FERIADOS
     const markersFeriado = fechasOrdenadas
         .map(fecha => {
             const info = fechasMap[fecha];
@@ -137,12 +153,13 @@ async function cargarDatosDesdeGoogleSheet() {
 
     seriesSugerida.setMarkers([...markersPartido, ...markersFeriado]);
 
-    // ---- AÑADIDO para mostrar últimos 30 días al iniciar ----
-    const SECONDS_IN_DAY = 24 * 3600;
-    const ultimoTimestamp = ventas[ventas.length - 1].time;
-    const desdeTimestamp = ultimoTimestamp - (30 * SECONDS_IN_DAY);
-
-    chart.timeScale().setVisibleRange({ from: desdeTimestamp, to: ultimoTimestamp });
+    // Mostrar últimas 30 barras visibles (ajusta a tu preferencia)
+    const totalBarras = ventas.length + 10;
+    const barrasVisibles = 25;
+    chart.timeScale().setVisibleLogicalRange({
+        from: totalBarras - barrasVisibles,
+        to: totalBarras
+    });
 }
 
 cargarDatosDesdeGoogleSheet();
